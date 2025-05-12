@@ -128,6 +128,8 @@ def post_answers_for_game(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
     ):
+    pass
+'''
     game = db.query(Game).filter(User.username == current_user.username) \
         .filter(Game.id == id).first()
     if not game:
@@ -145,3 +147,4 @@ def post_answers_for_game(
         status_code=status.HTTP_200_OK,
         content={"game": answer_model.answers}
     )
+'''
