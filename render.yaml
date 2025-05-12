@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: manukko-learn-languages
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.__init__:app --bind 0.0.0.0:8000
+    plan: free

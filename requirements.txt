@@ -1,0 +1,15 @@
+fastapi
+fastapi-cli
+fastapi-mail
+gunicorn
+uvicorn 
+pydantic 
+sqlalchemy
+passlib
+bcrypt 
+python-jose
+python-multipart
+postgres
+alembic
+redis
+itsdangerous
