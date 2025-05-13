@@ -69,7 +69,7 @@ class GameService:
     
     def get_game_details_from_id(self, db: Session, user: User, game_id: int) -> GameDetailOutputModel:
 
-        game = db.query(Game).filter(User.username == user.username).filter(Game.id == game_id).first()
+        game = db.query(Game).filter(Game.user_id == user.id).filter(Game.id == game_id).first()
         if not game:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -168,7 +168,6 @@ class GameService:
             else None
         )
         
-        print(game.is_active)
         game = GameDetailOutputModel(
             id=game.id,
             language=game.language,
