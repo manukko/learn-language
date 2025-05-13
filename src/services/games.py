@@ -81,7 +81,9 @@ class GameService:
             game_score_percentage = None
         else:
             game_score_percentage = game.n_correct_answers / (game.n_words_to_guess - n_remaining_words_to_guess_number)
-        game = GameDetailOutputModel(
+        
+        print(f"is_active={game.is_active}")
+        game_output_model = GameDetailOutputModel(
             id=game.id,
             language=game.language,
             n_words_to_guess=game.n_words_to_guess,
@@ -91,7 +93,7 @@ class GameService:
             game_score_percentage=game_score_percentage,
             n_remaining_words_to_guess=n_remaining_words_to_guess,
         ).model_dump()
-        return game
+        return game_output_model
 
     def give_answers_for_game(
         self, db: Session, user: User, game_id: int, answers: dict[str, str]
