@@ -66,13 +66,12 @@ class GameWords(Base):
 class Stat(Base):
     __tablename__ = "stats"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    word_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     n_appearances = Column(Integer, nullable=False)
     n_correct_answers = Column(Integer, nullable=False)
-    game = relationship("User")
+    user = relationship("User")
     word = relationship("Word")
-
 
 def init_db():
     print("Initializing database...")
