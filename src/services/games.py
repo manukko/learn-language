@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
 import random
-from src.schemas.games import GameModel, GameDetailModel
+from src.schemas.games import GameOutputModel, GameDetailOutputModel, StatOutputModel
 from typing import List, Tuple
 
 
@@ -56,18 +56,18 @@ class GameService:
         db.commit()
         return new_game, words
     
-    def get_games_for_user(self, db: Session, user: User, active_only: bool) -> List[GameModel]:
+    def get_games_for_user(self, db: Session, user: User, active_only: bool) -> List[GameOutputModel]:
 
         games = db.query(Game).filter(User.username == user.username)
         if active_only:
             games.filter(Game.is_active)
         games = games.all()
         games = [
-            GameModel.model_validate(game).model_dump() for game in games
+            GameOutputModel.model_validate(game).model_dump() for game in games
         ]
         return games
     
-    def get_game_details_from_id(self, db: Session, user: User, game_id: int) -> GameDetailModel:
+    def get_game_details_from_id(self, db: Session, user: User, game_id: int) -> GameDetailOutputModel:
 
         game = db.query(Game).filter(User.username == user.username).filter(Game.id == game_id).first()
         if not game:
@@ -81,7 +81,7 @@ class GameService:
             game_score_percentage = None
         else:
             game_score_percentage = game.n_correct_answers / (game.n_words_to_guess - n_remaining_words_to_guess_number)
-        game = GameDetailModel(
+        game = GameDetailOutputModel(
             id=game.id,
             language=game.language,
             n_words_to_guess=game.n_words_to_guess,
@@ -95,7 +95,7 @@ class GameService:
 
     def give_answers_for_game(
         self, db: Session, user: User, game_id: int, answers: dict[str, str]
-    ) -> Tuple[GameDetailModel, float]:
+    ) -> Tuple[GameDetailOutputModel, float]:
         game = db.query(Game).filter(Game.user_id == user.id) \
             .filter(Game.id == game_id).first()
         if not game:
@@ -168,7 +168,8 @@ class GameService:
             else None
         )
         
-        game = GameDetailModel(
+        print(game.is_active)
+        game = GameDetailOutputModel(
             id=game.id,
             language=game.language,
             n_words_to_guess=game.n_words_to_guess,
@@ -179,3 +180,18 @@ class GameService:
             n_remaining_words_to_guess=n_remaining_words_to_guess,
         ).model_dump()
         return game, round_score_percentage
+
+    def get_stats_for_user(self, db: Session, user: User) -> List[StatOutputModel]:
+        stats = db.query(Stat).filter(Stat.user_id == user.id).all()
+        stats_output_model = []
+        for stat in stats:
+            stat_output_model = StatOutputModel(
+                word=stat.word.name,
+                translation=stat.word.translation,
+                n_appearances=stat.n_appearances,
+                n_correct_answers=stat.n_correct_answers,
+                total_score_percent=round(stat.n_correct_answers*100/stat.n_appearances,2)
+            )
+            stats_output_model.append(stat_output_model)
+        stats_output_model.sort(key=lambda x: (x.total_score_percent, -x.n_appearances))
+        return stats_output_model

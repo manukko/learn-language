@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -6,8 +7,8 @@ from src.services.auth import (
     get_current_user_factory
 )
 from src.db.models import User
-from src.schemas.games import GameCreate
-from src.schemas.games import AnswerModel
+from src.schemas.games import GameCreateInputModel, StatOutputModel
+from src.schemas.games import AnswerInputModel
 from src.services.games import GameService
 
 router = APIRouter()
@@ -15,7 +16,7 @@ game_service = GameService()
 
 @router.post("/new")
 def create_game(
-    game_create_model: GameCreate,
+    game_create_model: GameCreateInputModel,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
     ):
@@ -63,6 +64,14 @@ def get_all_games_for_user(
         content={"games": games}
     )
 
+@router.get("/stats", response_model=List[StatOutputModel])
+def get_stats_for_user(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_factory()),
+    ):
+    stats = game_service.get_stats_for_user(db, current_user)
+    return stats
+
 @router.get("/{id}")
 def get_game_details_from_id(
     id: int,
@@ -79,7 +88,7 @@ def get_game_details_from_id(
 @router.post("/{id}/answers")
 def post_answers_for_game(
     id: int,
-    answer_model: AnswerModel,
+    answer_model: AnswerInputModel,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
     ):
