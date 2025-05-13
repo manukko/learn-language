@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from src.db.models import User, Word, Game, GameWords, SUPPORTED_LANGUAGES
+from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
 import random
 from src.schemas.games import GameModel, GameDetailModel
 from typing import List, Tuple
@@ -96,7 +96,7 @@ class GameService:
     def give_answers_for_game(
         self, db: Session, user: User, game_id: int, answers: dict[str, str]
     ) -> Tuple[GameDetailModel, float]:
-        game = db.query(Game).filter(User.username == user.username) \
+        game = db.query(Game).filter(Game.user_id == user.id) \
             .filter(Game.id == game_id).first()
         if not game:
             raise HTTPException(
@@ -122,9 +122,25 @@ class GameService:
                 word_gt = db.query(Word).filter(Word.language == language).filter(Word.name == word_name).first()
                 translation_gt = word_gt.translation
                 if translation_gt == word_candidate_translation:
+                    correct_answer_increment = 1
                     n_correct_answers += 1
+                else:
+                    correct_answer_increment = 0
                 db.query(GameWords).filter(GameWords.game_id == game.id). \
                     filter(GameWords.word_id == word_gt.id).delete()
+                stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word_gt.id).first()
+                if not stat:
+                    db.add(
+                        Stat(
+                            user_id=user.id,
+                            word_id=word_gt.id,
+                            n_appearances=1,
+                            n_correct_answers=correct_answer_increment,
+                        )
+                    )
+                else:
+                    stat.n_correct_answers += 1
+                    stat.n_correct_answers += correct_answer_increment
                 db.commit()
         
         game.n_correct_answers = game.n_correct_answers + n_correct_answers
