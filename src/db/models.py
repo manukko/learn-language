@@ -63,13 +63,15 @@ class GameWords(Base):
     word = relationship("Word")
 
 
-""" class Stat(Base):
+class Stat(Base):
     __tablename__ = "stats"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True, nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    created_at = Column(postgresql.TIMESTAMP, default=datetime.now, nullable=False)
-    owner = relationship("User", back_populates="stats") """
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    word_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    n_appearances = Column(Integer, nullable=False)
+    n_correct_answers = Column(Integer, nullable=False)
+    game = relationship("User")
+    word = relationship("Word")
 
 
 def init_db():
