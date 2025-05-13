@@ -60,7 +60,7 @@ class GameService:
 
         games = db.query(Game).filter(User.username == user.username)
         if active_only:
-            games.filter(Game.is_active)
+            games = games.filter(Game.is_active)
         games = games.all()
         games = [
             GameOutputModel.model_validate(game).model_dump() for game in games
