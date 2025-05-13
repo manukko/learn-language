@@ -14,7 +14,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-SUPPORTED_LANGUAGES = ["german", ]
+SUPPORTED_LANGUAGES = ["german", "italian"]
 
 
 class User(Base):
@@ -79,23 +79,23 @@ def init_db():
     print("Database is ready.")
 
 def import_csvs_to_db(session=SessionLocal()):
-    result = session.query(Word).limit(1).first()
-    if not result:
-        print("No words present in Word table: importing words from csvs...")
         for language in SUPPORTED_LANGUAGES:
-            csv_file = f"{os.path.dirname(os.path.abspath(__file__))}/csv/{language}.csv"
-            with open(csv_file, mode='r', encoding='utf-8') as file:
-                csv_reader = csv.DictReader(file)
-                for row in csv_reader:
-                    word_translation = Word(
-                        name=row['Word'],
-                        translation=row['Translation'],
-                        language=language,
-                        frequency=int(row['Frequency'])
-                    )
-                    session.add(word_translation)
-        session.commit()
-        print("Data imported successfully!")
+            result = session.query(Word).filter(Word.language == language).limit(1).first()
+            if not result:
+                print(f"No words present in Word table for language {language}: importing words from csvs...")
+                csv_file = f"{os.path.dirname(os.path.abspath(__file__))}/csv/{language}.csv"
+                with open(csv_file, mode='r', encoding='utf-8') as file:
+                    csv_reader = csv.DictReader(file)
+                    for row in csv_reader:
+                        word_translation = Word(
+                            name=row['Word'],
+                            translation=row['Translation'],
+                            language=language,
+                            frequency=int(row['Frequency'])
+                        )
+                        session.add(word_translation)
+                session.commit()
+                print(f"Data imported successfully for language: {language}!")
 
 if __name__=="__main__":
     init_db()
