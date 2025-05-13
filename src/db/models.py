@@ -9,7 +9,7 @@ from datetime import datetime
 DATABASE_URL = env.POSTGRES_DB_URL
 engine = create_engine(
     # DATABASE_URL, connect_args={"check_same_thread": False}, echo=True # for sqlite
-    DATABASE_URL, echo=True # for postgres
+    DATABASE_URL, echo=False # for postgres
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -48,9 +48,9 @@ class Game(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     is_active = Column(Boolean, nullable=False, default=True, server_default=text('true'))
     language = Column(String, nullable=False)
-    total_words_to_guess = Column(Integer, nullable=False)
-    correct_words = Column(Integer, nullable=False, default=0, server_default=text('0'))
-    vocabulary_size = Column(Integer, nullable=False)
+    n_words_to_guess = Column(Integer, nullable=False)
+    n_correct_answers = Column(Integer, nullable=False, default=0, server_default=text('0'))
+    n_vocabulary = Column(Integer, nullable=False)
     words = relationship("GameWords", back_populates="game", cascade="all")
 
 

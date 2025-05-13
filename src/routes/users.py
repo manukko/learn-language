@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from src.db.models import User
-from src.auth.auth import (
+from src.services.auth import (
     get_db_session,
     get_current_user_factory,
     get_user_by_email,
@@ -25,7 +25,7 @@ router = APIRouter()
 DOMAIN = env.DOMAIN
 
 USERNAME_FORBIDDEN_CHARACTERS = list("$%\\/<>:^?!")
-ACCESS_TOKEN_DEFAULT_LIFESPAN_MINUTES = 180
+ACCESS_TOKEN_DEFAULT_LIFESPAN_MINUTES = 18000 # TODO: change to 120 in prod
 REFRESH_TOKEN_DEFAULT_LIFESPAN_HOURS = 168
 
 

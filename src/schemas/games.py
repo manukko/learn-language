@@ -1,26 +1,26 @@
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GameModel(BaseModel):
     id: int
     language: str
-    total_words_to_guess: int
-    vocabulary_size: int
+    n_words_to_guess: int = Field(..., ge=1)
+    n_vocabulary: int = Field(..., ge=50)
     model_config = {
         "from_attributes": True
     }
 
 class GameDetailModel(GameModel):
-    correct_words_number: int
-    remaining_words_to_guess_number: int
-    remaining_words_to_guess: List[str]
-    score_percentage: int | None
+    n_correct_answers: int
+    n_remaining_words_to_guess_number: int
+    n_remaining_words_to_guess: List[str]
+    game_score_percentage: float | None
 
 class GameCreate(BaseModel):
     language: str
-    vocabulary_size: int
-    total_words_to_guess: int = 10
+    n_vocabulary: int
+    n_words_to_guess: int = 10
 
 class AnswerModel(BaseModel):
     answers: dict[str, str]
