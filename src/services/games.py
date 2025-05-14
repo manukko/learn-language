@@ -4,6 +4,7 @@ from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
 import random
 from src.schemas.games import GameOutputModel, GameDetailOutputModel, StatOutputModel
 from typing import List, Tuple
+from src.utils import calculate_score_percentage
 
 
 class GameService:
@@ -111,22 +112,22 @@ class GameService:
                 detail="Game has ended, please play an active game!"
             )
         
-        n_remaining_words_to_guess = [word.word.source_word for word in game.words]
+        remaining_words_to_guess = [word.word.source_word for word in game.words]
         language = game.language
-        total_attempts = 0
-        n_correct_answers = 0
+        n_round_valid_attempts = 0
+        n_round_correct_answers = 0
 
         for source_word, word_candidate_translation in answers.items():
             source_word = source_word.lower()
             word_candidate_translation = word_candidate_translation.lower()
-            if source_word in n_remaining_words_to_guess:
-                total_attempts += 1
+            if source_word in remaining_words_to_guess:
+                n_round_valid_attempts += 1
                 word_gt = db.query(Word).filter(Word.language == language).filter(Word.source_word == source_word).first()
                 translations_gt: List[str] = [word_translation.translation for word_translation in word_gt.translations]
                 print(translations_gt)
                 if word_candidate_translation in translations_gt:
                     correct_answer_increment = 1
-                    n_correct_answers += 1
+                    n_round_correct_answers += 1
                 else:
                     correct_answer_increment = 0
                 db.query(GameWords).filter(GameWords.game_id == game.id). \
@@ -146,30 +147,19 @@ class GameService:
                     stat.n_correct_answers += correct_answer_increment
                 db.commit()
         
-        game.n_correct_answers = game.n_correct_answers + n_correct_answers
-        round_score_percentage = (
-            round(n_correct_answers * 100 / total_attempts, 2)
-            if total_attempts > 0
-            else None
-        )
+        game.n_correct_answers = game.n_correct_answers + n_round_correct_answers
+        round_score_percentage = calculate_score_percentage(n_round_correct_answers, n_round_valid_attempts)
 
-        if total_attempts == len(n_remaining_words_to_guess):
+        if n_round_valid_attempts == len(remaining_words_to_guess):
             game.is_active = False
 
         db.commit()
         db.refresh(game)
-        n_remaining_words_to_guess = [game_word.word.source_word for game_word in game.words]
-        n_remaining_words_to_guess_number = len(n_remaining_words_to_guess)
-        game_score_percentage = (
-            round(
-                game.n_correct_answers
-                * 100
-                / (game.n_words_to_guess - n_remaining_words_to_guess_number),
-                2,
-            )
-            if game.n_words_to_guess > n_remaining_words_to_guess_number
-            else None
-        )
+
+        remaining_words_to_guess = [game_word.word.source_word for game_word in game.words]
+        n_remaining_words_to_guess = len(remaining_words_to_guess)
+        n_game_answers = game.n_words_to_guess - n_remaining_words_to_guess
+        game_score_percentage = calculate_score_percentage(game.n_correct_answers, n_game_answers)
         
         game = GameDetailOutputModel(
             id=game.id,
@@ -177,9 +167,9 @@ class GameService:
             n_words_to_guess=game.n_words_to_guess,
             n_vocabulary=game.n_vocabulary,
             n_correct_answers=game.n_correct_answers,
-            n_remaining_words_to_guess_number=n_remaining_words_to_guess_number,
+            n_remaining_words_to_guess_number=n_remaining_words_to_guess,
             game_score_percentage=game_score_percentage,
-            n_remaining_words_to_guess=n_remaining_words_to_guess,
+            n_remaining_words_to_guess=remaining_words_to_guess,
         ).model_dump()
         return game, round_score_percentage
 
@@ -189,10 +179,10 @@ class GameService:
         for stat in stats:
             stat_output_model = StatOutputModel(
                 word=stat.word.source_word,
-                translation=stat.word.translation,
+                translations=[word_translation.translation for word_translation in stat.word.translations],
                 n_appearances=stat.n_appearances,
                 n_correct_answers=stat.n_correct_answers,
-                total_score_percent=round(stat.n_correct_answers*100/stat.n_appearances,2)
+                total_score_percent=calculate_score_percentage(stat.n_correct_answers,stat.n_appearances)
             )
             stats_output_model.append(stat_output_model)
         stats_output_model.sort(key=lambda x: (x.total_score_percent, -x.n_appearances))
