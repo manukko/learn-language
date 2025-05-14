@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
+from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES, WordTranslation
 import random
 from src.schemas.games import GameOutputModel, GameDetailOutputModel, StatOutputModel
 from typing import List, Tuple
@@ -58,7 +58,7 @@ class GameService:
     
     def get_games_for_user(self, db: Session, user: User, active_only: bool) -> List[GameOutputModel]:
 
-        games = db.query(Game).filter(User.username == user.username)
+        games = db.query(Game).filter(Game.user_id == user.id)
         if active_only:
             games = games.filter(Game.is_active)
         games = games.all()
@@ -75,7 +75,7 @@ class GameService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No game of yours corresponds to the id provided!"
             )
-        n_remaining_words_to_guess = [word.word.name for word in game.words]
+        n_remaining_words_to_guess = [word.word.source_word for word in game.words]
         n_remaining_words_to_guess_number=len(n_remaining_words_to_guess)
         if n_remaining_words_to_guess_number==game.n_words_to_guess:
             game_score_percentage = None
@@ -111,19 +111,20 @@ class GameService:
                 detail="Game has ended, please play an active game!"
             )
         
-        n_remaining_words_to_guess = [word.word.name for word in game.words]
+        n_remaining_words_to_guess = [word.word.source_word for word in game.words]
         language = game.language
         total_attempts = 0
         n_correct_answers = 0
 
-        for word_name, word_candidate_translation in answers.items():
-            word_name = word_name.lower()
+        for source_word, word_candidate_translation in answers.items():
+            source_word = source_word.lower()
             word_candidate_translation = word_candidate_translation.lower()
-            if word_name in n_remaining_words_to_guess:
+            if source_word in n_remaining_words_to_guess:
                 total_attempts += 1
-                word_gt = db.query(Word).filter(Word.language == language).filter(Word.name == word_name).first()
-                translation_gt = word_gt.translation
-                if translation_gt == word_candidate_translation:
+                word_gt = db.query(Word).filter(Word.language == language).filter(Word.source_word == source_word).first()
+                translations_gt: List[str] = [word_translation.translation for word_translation in word_gt.translations]
+                print(translations_gt)
+                if word_candidate_translation in translations_gt:
                     correct_answer_increment = 1
                     n_correct_answers += 1
                 else:
@@ -157,7 +158,7 @@ class GameService:
 
         db.commit()
         db.refresh(game)
-        n_remaining_words_to_guess = [word.word.name for word in game.words]
+        n_remaining_words_to_guess = [game_word.word.source_word for game_word in game.words]
         n_remaining_words_to_guess_number = len(n_remaining_words_to_guess)
         game_score_percentage = (
             round(
@@ -187,7 +188,7 @@ class GameService:
         stats_output_model = []
         for stat in stats:
             stat_output_model = StatOutputModel(
-                word=stat.word.name,
+                word=stat.word.source_word,
                 translation=stat.word.translation,
                 n_appearances=stat.n_appearances,
                 n_correct_answers=stat.n_correct_answers,
