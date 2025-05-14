@@ -1,15 +1,17 @@
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES, WordTranslation
+from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
 import random
-from src.schemas.games import GameOutputModel, GameDetailOutputModel, StatOutputModel
+from src.schemas.games import GameOutputModel, GameDetailOutputModel
 from typing import List, Tuple
 from src.utils import calculate_score_percentage
-
 
 class GameService:
     def __init__(self):
         self.MAX_OPENED_GAMES_FOR_USER = 10
+        self.MAX_WORD_SCORE_HARD_GAME = 0.5 #50%
+        self.MIN_WORD_SCORE_RECAP_GAME = 0.5
 
     def create_new_game(
         self,
@@ -17,7 +19,8 @@ class GameService:
         user: User,
         language: str,
         n_words_to_guess: int,
-        n_vocabulary: int
+        n_vocabulary: int,
+        type: str
     ) -> Tuple[Game, List[Word]]:
         
         if language not in SUPPORTED_LANGUAGES:
@@ -35,13 +38,39 @@ class GameService:
                 """,
             )
 
-        vocabulary = (
-            db.query(Word).order_by(Word.frequency).limit(n_vocabulary).all()
-        )
-        n_vocabulary = len(vocabulary)  # n_vocabulary might be less than number provided by user
+        words = []
         n_words_to_guess = min(n_words_to_guess, n_vocabulary)  # n_words_to_guess <= n_vocabulary
-        random.shuffle(vocabulary)
-        words = vocabulary[0:n_words_to_guess]
+
+        if type == "hard":
+            stats = (
+                db.query(Stat)
+                    .filter(Stat.user_id == user.id)
+                    .filter((Stat.n_correct_answers / Stat.n_appearances) <= self.MAX_WORD_SCORE_HARD_GAME)
+                    .order_by(text('RANDOM()'))
+                    .limit(n_words_to_guess)
+                    .all()
+            )
+            words = [stat.word for stat in stats]
+        elif type == "recap":
+            stats = (
+                db.query(Stat)
+                    .filter(Stat.user_id == user.id)
+                    .filter((Stat.n_correct_answers / Stat.n_appearances) >= self.MIN_WORD_SCORE_RECAP_GAME)
+                    .order_by(text('RANDOM()'))
+                    .limit(n_words_to_guess)
+                    .all()
+            )
+            words = [stat.word for stat in stats]
+
+        n_missing_words = n_words_to_guess-len(words)
+        if n_missing_words > 0:
+            vocabulary = (
+                db.query(Word).order_by(Word.frequency).limit(n_vocabulary).all()
+            )
+            n_vocabulary = len(vocabulary)  # n_vocabulary might be less than number provided by user
+            random.shuffle(vocabulary)
+            if n_missing_words > 0:
+                words.extend(vocabulary[0:n_missing_words])
         new_game = Game(
             user_id=user.id,
             language=language,
@@ -143,7 +172,7 @@ class GameService:
                         )
                     )
                 else:
-                    stat.n_correct_answers += 1
+                    stat.n_appearances += 1
                     stat.n_correct_answers += correct_answer_increment
                 db.commit()
         
@@ -172,18 +201,3 @@ class GameService:
             n_remaining_words_to_guess=remaining_words_to_guess,
         ).model_dump()
         return game, round_score_percentage
-
-    def get_stats_for_user(self, db: Session, user: User) -> List[StatOutputModel]:
-        stats = db.query(Stat).filter(Stat.user_id == user.id).all()
-        stats_output_model = []
-        for stat in stats:
-            stat_output_model = StatOutputModel(
-                word=stat.word.source_word,
-                translations=[word_translation.translation for word_translation in stat.word.translations],
-                n_appearances=stat.n_appearances,
-                n_correct_answers=stat.n_correct_answers,
-                total_score_percent=calculate_score_percentage(stat.n_correct_answers,stat.n_appearances)
-            )
-            stats_output_model.append(stat_output_model)
-        stats_output_model.sort(key=lambda x: (x.total_score_percent, -x.n_appearances))
-        return stats_output_model
