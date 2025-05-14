@@ -21,13 +21,7 @@ class GameCreateInputModel(BaseModel):
     language: str
     n_vocabulary: int
     n_words_to_guess: int = 10
+    type: str = "random"
 
 class AnswerInputModel(BaseModel):
     answers: dict[str, str]
-
-class StatOutputModel(BaseModel):
-    word: str
-    translations: List[str]
-    n_appearances: int
-    n_correct_answers: int
-    total_score_percent: float

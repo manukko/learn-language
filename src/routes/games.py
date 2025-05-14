@@ -1,4 +1,3 @@
-from typing import List
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -7,7 +6,7 @@ from src.services.auth import (
     get_current_user_factory
 )
 from src.db.models import User
-from src.schemas.games import GameCreateInputModel, StatOutputModel
+from src.schemas.games import GameCreateInputModel
 from src.schemas.games import AnswerInputModel
 from src.services.games import GameService
 
@@ -22,15 +21,14 @@ def create_game(
     ):
 
     language = game_create_model.language.lower()
-    n_words_to_guess = game_create_model.n_words_to_guess
-    n_vocabulary = game_create_model.n_vocabulary
 
     new_game, words = game_service.create_new_game(
         db, 
         current_user, 
         language, 
-        n_words_to_guess, 
-        n_vocabulary
+        game_create_model.n_words_to_guess, 
+        game_create_model.n_vocabulary,
+        game_create_model.type
     )
 
     return JSONResponse (
@@ -63,14 +61,6 @@ def get_all_games_for_user(
         status_code=status.HTTP_200_OK,
         content={"games": games}
     )
-
-@router.get("/stats", response_model=List[StatOutputModel])
-def get_stats_for_user(
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user_factory()),
-    ):
-    stats = game_service.get_stats_for_user(db, current_user)
-    return stats
 
 @router.get("/{id}")
 def get_game_details_from_id(
