@@ -27,7 +27,7 @@ class AnswerInputModel(BaseModel):
 
 class StatOutputModel(BaseModel):
     word: str
-    translation: str
+    translations: List[str]
     n_appearances: int
     n_correct_answers: int
     total_score_percent: float
