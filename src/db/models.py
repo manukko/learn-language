@@ -27,7 +27,8 @@ class User(Base):
     updated_at = Column(postgresql.TIMESTAMP, default=datetime.now, nullable=False)
     is_verified = Column(Boolean, nullable=False, default=False, server_default=text('false'))
     games = relationship("Game", cascade="all")
-    # stats = relationship("Stat", back_populates="owner", cascade="all")
+    def __repr__(self):
+        return f"User: username:{self.username}, id={self.id}"
 
 class Word(Base):
     __tablename__ = "words"
@@ -40,6 +41,8 @@ class Word(Base):
         Index('ix_unique_language_frequency', 'language', 'frequency', unique=True),
         Index('ix_unique_language_word', 'language', 'source_word', unique=True)
     )
+    def __repr__(self):
+        return f"Word: source_word:{self.source_word}, id={self.id}, translations={self.translations}"
 
 class WordTranslation(Base):
     __tablename__ = "word_translations"
@@ -47,6 +50,9 @@ class WordTranslation(Base):
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     translation = Column(String, nullable=False)
     word = relationship("Word", back_populates="translations")
+    def __repr__(self):
+        return f"WordTranslation: word:{self.word.source_word}, translation:{self.translation}, id={self.id}"
+
 
 class Game(Base):
     __tablename__ = "games"
@@ -58,6 +64,11 @@ class Game(Base):
     n_correct_answers = Column(Integer, nullable=False, default=0, server_default=text('0'))
     n_vocabulary = Column(Integer, nullable=False)
     words = relationship("GameWords", back_populates="game", cascade="all")
+    def __repr__(self):
+        return (
+            f"Game: user_id:{self.user_id}, id={self.id}, "
+            f"language={self.language}, n_words_left_to_guess={len(self.words)}"
+        )
 
 
 class GameWords(Base):
@@ -67,6 +78,12 @@ class GameWords(Base):
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     game = relationship("Game", back_populates="words")
     word = relationship("Word")
+    def __repr__(self):
+        return (
+            f"GameWords: id={self.id}, word={self.word.source_word}, "
+            f"game_id:{self.game_id}, word_id:{self.word_id}"
+        )
+
 
 
 class Stat(Base):
@@ -78,6 +95,13 @@ class Stat(Base):
     n_correct_answers = Column(Integer, nullable=False)
     user = relationship("User")
     word = relationship("Word")
+
+    def __repr__(self):
+        return (
+            f"Stat: id={self.id}, username:{self.user.username}, source_word:{self.word.source_word}, "
+            f"n_appearances:{self.n_appearances}, n_correct_answers:{self.n_correct_answers}"
+        )
+
 
 def init_db():
     print("Initializing database...")
