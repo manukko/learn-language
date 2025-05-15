@@ -28,7 +28,7 @@ class User(Base):
     is_verified = Column(Boolean, nullable=False, default=False, server_default=text('false'))
     games = relationship("Game", cascade="all")
     def __repr__(self):
-        return f"User: username:{self.username}, id={self.id}"
+        return f"<User: username:{self.username}, id={self.id}>"
 
 class Word(Base):
     __tablename__ = "words"
@@ -42,7 +42,7 @@ class Word(Base):
         Index('ix_unique_language_word', 'language', 'source_word', unique=True)
     )
     def __repr__(self):
-        return f"Word: source_word:{self.source_word}, id={self.id}, translations={self.translations}"
+        return f"<Word: source_word:{self.source_word}, id={self.id}, translations={self.translations}>"
 
 class WordTranslation(Base):
     __tablename__ = "word_translations"
@@ -51,7 +51,7 @@ class WordTranslation(Base):
     translation = Column(String, nullable=False)
     word = relationship("Word", back_populates="translations")
     def __repr__(self):
-        return f"WordTranslation: word:{self.word.source_word}, translation:{self.translation}, id={self.id}"
+        return f"<WordTranslation: word:{self.word.source_word}, translation:{self.translation}, id={self.id}>"
 
 
 class Game(Base):
@@ -66,8 +66,8 @@ class Game(Base):
     words = relationship("GameWords", back_populates="game", cascade="all")
     def __repr__(self):
         return (
-            f"Game: user_id:{self.user_id}, id={self.id}, "
-            f"language={self.language}, n_words_left_to_guess={len(self.words)}"
+            f"<Game: user_id:{self.user_id}, id={self.id}, "
+            f"language={self.language}, n_words_left_to_guess={len(self.words)}>"
         )
 
 
@@ -80,8 +80,8 @@ class GameWords(Base):
     word = relationship("Word")
     def __repr__(self):
         return (
-            f"GameWords: id={self.id}, word={self.word.source_word}, "
-            f"game_id:{self.game_id}, word_id:{self.word_id}"
+            f"<GameWords: id={self.id}, word={self.word.source_word}, "
+            f"game_id:{self.game_id}, word_id:{self.word_id}>"
         )
 
 
@@ -98,8 +98,8 @@ class Stat(Base):
 
     def __repr__(self):
         return (
-            f"Stat: id={self.id}, username:{self.user.username}, source_word:{self.word.source_word}, "
-            f"n_appearances:{self.n_appearances}, n_correct_answers:{self.n_correct_answers}"
+            f"<Stat: id={self.id}, username:{self.user.username}, source_word:{self.word.source_word}, "
+            f"n_appearances:{self.n_appearances}, n_correct_answers:{self.n_correct_answers}>"
         )
 
 
