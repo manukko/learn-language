@@ -81,7 +81,8 @@ class GameService:
         db.commit()
         db.refresh(new_game)
         for word in words:
-            new_game_word = GameWords(game_id=new_game.id, word_id=word.id)
+            guess_from_source = random.choice([True, False])
+            new_game_word = GameWords(game_id=new_game.id, word_id=word.id, guess_from_source=guess_from_source)
             db.add(new_game_word)
         db.commit()
         return new_game, words
@@ -119,9 +120,9 @@ class GameService:
             n_words_to_guess=game.n_words_to_guess,
             n_vocabulary=game.n_vocabulary,
             n_correct_answers=game.n_correct_answers,
-            n_remaining_words_to_guess_number=n_remaining_words_to_guess_number,
+            n_remaining_words_to_guess=n_remaining_words_to_guess_number,
             game_score_percentage=game_score_percentage,
-            n_remaining_words_to_guess=n_remaining_words_to_guess,
+            remaining_words_to_guess=n_remaining_words_to_guess,
         ).model_dump()
         return game_output_model
 
@@ -196,8 +197,8 @@ class GameService:
             n_words_to_guess=game.n_words_to_guess,
             n_vocabulary=game.n_vocabulary,
             n_correct_answers=game.n_correct_answers,
-            n_remaining_words_to_guess_number=n_remaining_words_to_guess,
+            n_remaining_words_to_guess=n_remaining_words_to_guess,
             game_score_percentage=game_score_percentage,
-            n_remaining_words_to_guess=remaining_words_to_guess,
+            remaining_words_to_guess=remaining_words_to_guess,
         ).model_dump()
         return game, round_score_percentage

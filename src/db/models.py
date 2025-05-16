@@ -76,6 +76,7 @@ class GameWords(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"))
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
+    guess_from_source = Column(Boolean, nullable=False)
     game = relationship("Game", back_populates="words")
     word = relationship("Word")
     def __repr__(self):

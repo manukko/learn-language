@@ -13,8 +13,8 @@ class GameOutputModel(BaseModel):
 
 class GameDetailOutputModel(GameOutputModel):
     n_correct_answers: int
-    n_remaining_words_to_guess_number: int
-    n_remaining_words_to_guess: List[str]
+    n_remaining_words_to_guess: int
+    remaining_words_to_guess: List[str]
     game_score_percentage: float | None
 
 class GameCreateInputModel(BaseModel):
