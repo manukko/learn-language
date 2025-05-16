@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User, Word, Game, GameWords, SUPPORTED_LANGUAGES
+from src.db.models import Stat, User, Word, Game, GameWord, SUPPORTED_LANGUAGES
 import random
 from src.schemas.games import GameOutputModel, GameDetailOutputModel
 from typing import List, Tuple
@@ -44,6 +44,8 @@ class GameService:
         if type == "hard":
             stats = (
                 db.query(Stat)
+                    .join(Stat.word)
+                    .filter(Word.language == language)
                     .filter(Stat.user_id == user.id)
                     .filter((Stat.n_correct_answers / Stat.n_appearances) <= self.MAX_WORD_SCORE_HARD_GAME)
                     .order_by(text('RANDOM()'))
@@ -54,6 +56,8 @@ class GameService:
         elif type == "recap":
             stats = (
                 db.query(Stat)
+                    .join(Stat.word)
+                    .filter(Word.language == language)
                     .filter(Stat.user_id == user.id)
                     .filter((Stat.n_correct_answers / Stat.n_appearances) >= self.MIN_WORD_SCORE_RECAP_GAME)
                     .order_by(text('RANDOM()'))
@@ -65,7 +69,7 @@ class GameService:
         n_missing_words = n_words_to_guess-len(words)
         if n_missing_words > 0:
             vocabulary = (
-                db.query(Word).order_by(Word.frequency).limit(n_vocabulary).all()
+                db.query(Word).filter(Word.language == language).order_by(Word.frequency).limit(n_vocabulary).all()
             )
             n_vocabulary = len(vocabulary)  # n_vocabulary might be less than number provided by user
             random.shuffle(vocabulary)
@@ -81,8 +85,7 @@ class GameService:
         db.commit()
         db.refresh(new_game)
         for word in words:
-            guess_from_source = random.choice([True, False])
-            new_game_word = GameWords(game_id=new_game.id, word_id=word.id, guess_from_source=guess_from_source)
+            new_game_word = GameWord(game_id=new_game.id, word_id=word.id)
             db.add(new_game_word)
         db.commit()
         return new_game, words
@@ -142,32 +145,35 @@ class GameService:
                 detail="Game has ended, please play an active game!"
             )
         
-        remaining_words_to_guess = [word.word.source_word for word in game.words]
-        language = game.language
+        remaining_game_words_to_guess_dict: dict[str, GameWord] = {}
+        game_words: List[GameWord] = game.words
+        for game_word in game_words:
+            remaining_game_words_to_guess_dict[game_word.word.source_word] = game_word
+        
         n_round_valid_attempts = 0
         n_round_correct_answers = 0
 
         for source_word, word_candidate_translation in answers.items():
             source_word = source_word.lower()
             word_candidate_translation = word_candidate_translation.lower()
-            if source_word in remaining_words_to_guess:
+            if source_word in list(remaining_game_words_to_guess_dict.keys()):
+                game_word = remaining_game_words_to_guess_dict[source_word]
+                word = game_word.word
                 n_round_valid_attempts += 1
-                word_gt = db.query(Word).filter(Word.language == language).filter(Word.source_word == source_word).first()
-                translations_gt: List[str] = [word_translation.translation for word_translation in word_gt.translations]
-                print(translations_gt)
-                if word_candidate_translation in translations_gt:
+                word_translations_gt: List[str] = [word_translation.translation for word_translation in word.translations]
+                if word_candidate_translation in word_translations_gt:
                     correct_answer_increment = 1
                     n_round_correct_answers += 1
                 else:
                     correct_answer_increment = 0
-                db.query(GameWords).filter(GameWords.game_id == game.id). \
-                    filter(GameWords.word_id == word_gt.id).delete()
-                stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word_gt.id).first()
+                remaining_game_words_to_guess_dict.pop(source_word)
+                db.delete(game_word)
+                stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word.id).first()
                 if not stat:
                     db.add(
                         Stat(
                             user_id=user.id,
-                            word_id=word_gt.id,
+                            word_id=word.id,
                             n_appearances=1,
                             n_correct_answers=correct_answer_increment,
                         )
@@ -180,14 +186,15 @@ class GameService:
         game.n_correct_answers = game.n_correct_answers + n_round_correct_answers
         round_score_percentage = calculate_score_percentage(n_round_correct_answers, n_round_valid_attempts)
 
-        if n_round_valid_attempts == len(remaining_words_to_guess):
+        remaining_source_words_to_guess = list(remaining_game_words_to_guess_dict.keys())
+        n_remaining_words_to_guess = len(remaining_source_words_to_guess)
+        
+        if n_remaining_words_to_guess == 0:
             game.is_active = False
 
         db.commit()
         db.refresh(game)
 
-        remaining_words_to_guess = [game_word.word.source_word for game_word in game.words]
-        n_remaining_words_to_guess = len(remaining_words_to_guess)
         n_game_answers = game.n_words_to_guess - n_remaining_words_to_guess
         game_score_percentage = calculate_score_percentage(game.n_correct_answers, n_game_answers)
         
@@ -199,6 +206,6 @@ class GameService:
             n_correct_answers=game.n_correct_answers,
             n_remaining_words_to_guess=n_remaining_words_to_guess,
             game_score_percentage=game_score_percentage,
-            remaining_words_to_guess=remaining_words_to_guess,
+            remaining_words_to_guess=remaining_source_words_to_guess,
         ).model_dump()
         return game, round_score_percentage

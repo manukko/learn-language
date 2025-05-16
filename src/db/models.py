@@ -63,7 +63,7 @@ class Game(Base):
     n_words_to_guess = Column(Integer, nullable=False)
     n_correct_answers = Column(Integer, nullable=False, default=0, server_default=text('0'))
     n_vocabulary = Column(Integer, nullable=False)
-    words = relationship("GameWords", back_populates="game", cascade="all")
+    words = relationship("GameWord", back_populates="game", cascade="all")
     def __repr__(self):
         return (
             f"<Game: user_id:{self.user_id}, id={self.id}, "
@@ -71,17 +71,16 @@ class Game(Base):
         )
 
 
-class GameWords(Base):
+class GameWord(Base):
     __tablename__ = "game_words"
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"))
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
-    guess_from_source = Column(Boolean, nullable=False)
     game = relationship("Game", back_populates="words")
     word = relationship("Word")
     def __repr__(self):
         return (
-            f"<GameWords: id={self.id}, word={self.word.source_word}, "
+            f"<GameWord: id={self.id}, word={self.word.source_word}, "
             f"game_id:{self.game_id}, word_id:{self.word_id}>"
         )
 
