@@ -169,7 +169,7 @@ def get_refresh_token(
     return {"refresh_token": refresh_token, "token_type": "bearer"}
 
 @router.get("/refresh_access_token")
-def get_refresh_token_from_access_token(
+def get_access_token_from_refresh_token(
     current_user: User = Depends(get_current_user_factory(is_refresh_token=True)),
 ):
     access_token = create_token(
