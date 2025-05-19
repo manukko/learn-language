@@ -1,7 +1,8 @@
 import csv
 import os
+from typing import List
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean, create_engine, text, Index
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base, deferred
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base, deferred, Mapped
 import env
 from sqlalchemy.dialects import postgresql
 from datetime import datetime
@@ -37,7 +38,7 @@ class User(Base):
     created_at = Column(postgresql.TIMESTAMP, default=datetime.now, nullable=False)
     updated_at = Column(postgresql.TIMESTAMP, default=datetime.now, nullable=False)
     is_verified = Column(Boolean, nullable=False, default=False, server_default=text('false'))
-    games = relationship("Game", cascade="all")
+    games: Mapped[List["Game"]] = relationship("Game", cascade="all")
 
     def __repr__(self):
         return f"<User: username:{self.username}, id={self.id}>"
@@ -56,7 +57,7 @@ class Word(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     text = Column(String, nullable=False)
     language = Column(String, nullable=False, index=True)
-    translations = relationship("WordTranslation", back_populates="word", cascade="all")
+    translations: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="word", cascade="all")
     __table_args__ = (
         Index('ix_unique_language_text_word', 'language', 'text', unique=True),
     )
@@ -78,7 +79,7 @@ class Translation(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     text = Column(String, nullable=False)
     language = Column(String, nullable=False, index=True)
-    words = relationship("WordTranslation", back_populates="translation", cascade="all")
+    words: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="translation", cascade="all")
     __table_args__ = (
         Index('ix_unique_language_text_translation', 'language', 'text', unique=True),
     )
@@ -94,17 +95,17 @@ class WordTranslation(Base):
         id (int): Primary key.
         word_id (int): Foreign key to the Word.
         translation_id (int): Foreign key to the Translation.
+        frequency (int): Frequency of usage or importance.
         word (Word): The source word.
         translation (Translation): The translated word.
-        frequency (int): Frequency of usage or importance.
     """
     __tablename__ = "word_translations"
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     translation_id = Column(Integer, ForeignKey("translations.id", ondelete="CASCADE"))
-    word = relationship("Word", back_populates="translations")
-    translation = relationship("Translation", back_populates="words")
     frequency = Column(Integer, nullable=False, index=True)
+    word: Mapped[Word] = relationship("Word", back_populates="translations")
+    translation: Mapped[Translation]= relationship("Translation", back_populates="words")
 
     def __repr__(self):
         return f"<WordTranslation: word:{self.word.text}, translation:{self.translation.text}, id={self.id}>"
@@ -131,7 +132,7 @@ class Game(Base):
     n_words_to_guess = Column(Integer, nullable=False)
     n_correct_answers = Column(Integer, nullable=False, default=0, server_default=text('0'))
     n_vocabulary = Column(Integer, nullable=False)
-    words = relationship("GameWord", back_populates="game", cascade="all")
+    words: Mapped[List["GameWord"]] = relationship("GameWord", back_populates="game", cascade="all")
 
     def __repr__(self):
         return (
@@ -154,8 +155,8 @@ class GameWord(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"))
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
-    game = relationship("Game", back_populates="words")
-    word = relationship("Word")
+    game: Mapped["Game"] = relationship("Game", back_populates="words")
+    word: Mapped["Word"] = relationship("Word")
 
     def __repr__(self):
         return (
@@ -182,8 +183,8 @@ class Stat(Base):
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     n_appearances = Column(Integer, nullable=False)
     n_correct_answers = Column(Integer, nullable=False)
-    user = relationship("User")
-    word = relationship("Word")
+    user: Mapped[User] = relationship("User")
+    word: Mapped[Word] = relationship("Word")
 
     def __repr__(self):
         return (
@@ -208,19 +209,28 @@ def import_csvs_to_db(db=SessionLocal()):
                     csv_reader = csv.DictReader(file)
                     for row in csv_reader:
                         word_text = row['Word']
-                        word = db.query(Word).filter(Word.text == word_text).first()
+                        word = db.query(Word).filter(Word.language == language).filter(Word.text == word_text).first()
                         if word is None:
                             word = Word(
                                 text=word_text,
-                                language=language,
-                                frequency=int(row['Frequency'])
+                                language=language
                             )
-                        db.add(word)
+                            db.add(word)
+                        translation_text = row['Translation']
+                        translation = db.query(Translation).filter(Translation.language == language).filter(Translation.text == translation_text).first()
+                        if translation is None:
+                            translation = Translation(
+                                text=translation_text,
+                                language=language
+                            )
+                            db.add(translation)
                         db.commit()
                         db.refresh(word)
+                        db.refresh(translation)
                         translation = WordTranslation(
-                            translation=row['Translation'],
-                            word_id=word.id
+                            word_id=word.id,
+                            translation_id=translation.id,
+                            frequency=int(row['Frequency'])
                         )
                         db.add(translation)
                         db.commit()
