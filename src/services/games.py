@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User, Word, Game, GameWord, SUPPORTED_LANGUAGES
+from src.db.models import Stat, User, Word, Game, GameWord, SUPPORTED_LANGUAGES, WordTranslation
 import random
 from src.schemas.games import GameOutputModel, GameDetailOutputModel
 from typing import List, Tuple
@@ -68,9 +68,15 @@ class GameService:
 
         n_missing_words = n_words_to_guess-len(words)
         if n_missing_words > 0:
-            vocabulary = (
-                db.query(Word).filter(Word.language == language).order_by(Word.frequency).limit(n_vocabulary).all()
+            words_translations = (
+                db.query(WordTranslation)
+                    .join(WordTranslation.word)
+                    .filter(Word.language == language)
+                    .order_by(WordTranslation.frequency)
+                    .limit(n_vocabulary)
+                    .all()
             )
+            vocabulary = [word_translation.word for word_translation in words_translations]
             n_vocabulary = len(vocabulary)  # n_vocabulary might be less than number provided by user
             random.shuffle(vocabulary)
             if n_missing_words > 0:
@@ -109,7 +115,7 @@ class GameService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No game of yours corresponds to the id provided!"
             )
-        n_remaining_words_to_guess = [word.word.source_word for word in game.words]
+        n_remaining_words_to_guess = [word.word.text for word in game.words]
         n_remaining_words_to_guess_number=len(n_remaining_words_to_guess)
         if n_remaining_words_to_guess_number==game.n_words_to_guess:
             game_score_percentage = None
@@ -148,25 +154,25 @@ class GameService:
         remaining_game_words_to_guess_dict: dict[str, GameWord] = {}
         game_words: List[GameWord] = game.words
         for game_word in game_words:
-            remaining_game_words_to_guess_dict[game_word.word.source_word] = game_word
+            remaining_game_words_to_guess_dict[game_word.word.text] = game_word
         
         n_round_valid_attempts = 0
         n_round_correct_answers = 0
 
-        for source_word, word_candidate_translation in answers.items():
-            source_word = source_word.lower()
-            word_candidate_translation = word_candidate_translation.lower()
-            if source_word in list(remaining_game_words_to_guess_dict.keys()):
-                game_word = remaining_game_words_to_guess_dict[source_word]
+        for word_text, word_candidate_translation_text in answers.items():
+            word_text = word_text.lower()
+            word_candidate_translation_text = word_candidate_translation_text.lower()
+            if word_text in list(remaining_game_words_to_guess_dict.keys()):
+                game_word = remaining_game_words_to_guess_dict[word_text]
                 word = game_word.word
                 n_round_valid_attempts += 1
-                word_translations_gt: List[str] = [word_translation.translation for word_translation in word.translations]
-                if word_candidate_translation in word_translations_gt:
+                word_translations_gt: List[str] = [word_translation.translation.text for word_translation in word.translations]
+                if word_candidate_translation_text in word_translations_gt:
                     correct_answer_increment = 1
                     n_round_correct_answers += 1
                 else:
                     correct_answer_increment = 0
-                remaining_game_words_to_guess_dict.pop(source_word)
+                remaining_game_words_to_guess_dict.pop(word_text)
                 db.delete(game_word)
                 stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word.id).first()
                 if not stat:
@@ -186,8 +192,8 @@ class GameService:
         game.n_correct_answers = game.n_correct_answers + n_round_correct_answers
         round_score_percentage = calculate_score_percentage(n_round_correct_answers, n_round_valid_attempts)
 
-        remaining_source_words_to_guess = list(remaining_game_words_to_guess_dict.keys())
-        n_remaining_words_to_guess = len(remaining_source_words_to_guess)
+        remaining_words_to_guess = list(remaining_game_words_to_guess_dict.keys())
+        n_remaining_words_to_guess = len(remaining_words_to_guess)
         
         if n_remaining_words_to_guess == 0:
             game.is_active = False
@@ -206,6 +212,6 @@ class GameService:
             n_correct_answers=game.n_correct_answers,
             n_remaining_words_to_guess=n_remaining_words_to_guess,
             game_score_percentage=game_score_percentage,
-            remaining_words_to_guess=remaining_source_words_to_guess,
+            remaining_words_to_guess=remaining_words_to_guess,
         ).model_dump()
         return game, round_score_percentage
