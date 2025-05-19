@@ -36,7 +36,7 @@ def create_game(
         content={
             "detail": "game created successfully",
             "game_id": new_game.id,
-            "words": [game_word.source_word for game_word in words]
+            "words": [game_word.text for game_word in words]
         }
     )
 
