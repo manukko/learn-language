@@ -63,7 +63,7 @@ class Word(Base):
     )
 
     def __repr__(self):
-        return f"<Word: text:{self.text}, id={self.id}, translations={self.translations}>"
+        return f"<Word: text:{self.text}, id={self.id}, translations={[word_translation.translation.text for word_translation in self.translations]}>"
 
 class Translation(Base):
     """
