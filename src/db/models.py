@@ -59,8 +59,8 @@ class Word(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     text = Column(String, nullable=False)
     language = Column(String, nullable=False, index=True)
-    associated_translations: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="word", cascade="all")
-    associated_words: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="translation", cascade="all")
+    associated_translations: Mapped[List["WordTranslation"]] = relationship("WordTranslation", foreign_keys="WordTranslation.word_id", back_populates="word", cascade="all")
+    associated_words: Mapped[List["WordTranslation"]] = relationship("WordTranslation", foreign_keys="WordTranslation.translation_id", back_populates="translation", cascade="all")
     __table_args__ = (
         Index('ix_unique_language_text_word', 'language', 'text', unique=True),
     )
@@ -83,7 +83,7 @@ class WordTranslation(Base):
     __tablename__ = "word_translations"
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
-    translation_id = Column(Integer, ForeignKey("translations.id", ondelete="CASCADE"))
+    translation_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     frequency = Column(Integer, nullable=False, index=True)
     word: Mapped[Word] = relationship("Word", foreign_keys=[word_id], back_populates="associated_translations")
     translation: Mapped[Word]= relationship("Word", foreign_keys=[translation_id], back_populates="associated_words")
