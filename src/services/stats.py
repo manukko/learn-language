@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User
+from src.db.models import Stat, User, Word
 from src.schemas.stats import StatOutputModel
 from typing import List
 from src.utils import calculate_score_percentage
@@ -9,11 +9,15 @@ class StatService:
     def __init__(self):
         pass
 
-    def get_stats_for_user(self, db: Session, user: User) -> List[StatOutputModel]:
-        stats = db.query(Stat).filter(Stat.user_id == user.id).all()
+    def get_stats_for_user(self, db: Session, user: User, language) -> List[StatOutputModel]:
+        stats_query = db.query(Stat).filter(Stat.user_id == user.id)
+        if language:
+            stats_query = stats_query.join(Stat.word).filter(Word.language == language)
+        stats = stats_query.all()
         stats_output_model = []
         for stat in stats:
             stat_output_model = StatOutputModel(
+                language=stat.word.language,
                 word=stat.word.text,
                 translations=[word_translation.translation.text for word_translation in stat.word.associated_translations],
                 n_appearances=stat.n_appearances,

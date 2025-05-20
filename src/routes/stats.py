@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.services.auth import (
     get_db_session,
@@ -16,6 +16,7 @@ stats_service = StatService()
 def get_stats_for_user(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
+    language: str | None = Query(None)
     ):
-    stats = stats_service.get_stats_for_user(db, current_user)
+    stats = stats_service.get_stats_for_user(db, current_user, language)
     return stats

@@ -12,6 +12,7 @@ class StatOutputModel(BaseModel):
         n_correct_answers (int): Number of times the word was answered correctly.
         total_score_percent (float): Percentage score based on correct answers.
     """
+    language: str
     word: str
     translations: List[str]
     n_appearances: int
