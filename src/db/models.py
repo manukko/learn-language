@@ -15,6 +15,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 SUPPORTED_LANGUAGES = ["german", "italian"]
+USER_LANGUAGE = "english" # TODO: expand with more user languages
 
 class User(Base):
     """
@@ -51,41 +52,21 @@ class Word(Base):
         id (int): Primary key.
         text (str): The word text.
         language (str): The language of the word.
-        translations (List[WordTranslation]): Links to translations.
+        associated_translations (List[WordTranslation]): List of word-to-word associations where current word figure as source word.
+        associated_words (List[WordTranslation]): List of word-to-word associations where current word figure as translation.
     """
     __tablename__ = "words"
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     text = Column(String, nullable=False)
     language = Column(String, nullable=False, index=True)
-    translations: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="word", cascade="all")
+    associated_translations: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="word", cascade="all")
+    associated_words: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="translation", cascade="all")
     __table_args__ = (
         Index('ix_unique_language_text_word', 'language', 'text', unique=True),
     )
 
     def __repr__(self):
-        return f"<Word: text:{self.text}, id={self.id}, translations={[word_translation.translation.text for word_translation in self.translations]}>"
-
-class Translation(Base):
-    """
-    Represents a translated word in a different language.
-
-    Attributes:
-        id (int): Primary key.
-        text (str): The translated text.
-        language (str): Language of the translation.
-        words (List[WordTranslation]): Links to words it translates.
-    """
-    __tablename__ = "translations"
-    id = Column(Integer, primary_key=True, index=True, nullable=False)
-    text = Column(String, nullable=False)
-    language = Column(String, nullable=False, index=True)
-    words: Mapped[List["WordTranslation"]] = relationship("WordTranslation", back_populates="translation", cascade="all")
-    __table_args__ = (
-        Index('ix_unique_language_text_translation', 'language', 'text', unique=True),
-    )
-
-    def __repr__(self):
-        return f"<Translation: text:{self.text}, id={self.id}>"
+        return f"<Word: text:{self.text}, id={self.id}, translations={[word_translation.translation.text for word_translation in self.associated_translations]}>"
 
 class WordTranslation(Base):
     """
@@ -104,8 +85,8 @@ class WordTranslation(Base):
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
     translation_id = Column(Integer, ForeignKey("translations.id", ondelete="CASCADE"))
     frequency = Column(Integer, nullable=False, index=True)
-    word: Mapped[Word] = relationship("Word", back_populates="translations")
-    translation: Mapped[Translation]= relationship("Translation", back_populates="words")
+    word: Mapped[Word] = relationship("Word", foreign_keys=[word_id], back_populates="associated_translations")
+    translation: Mapped[Word]= relationship("Word", foreign_keys=[translation_id], back_populates="associated_words")
 
     def __repr__(self):
         return f"<WordTranslation: word:{self.word.text}, translation:{self.translation.text}, id={self.id}>"
@@ -217,11 +198,11 @@ def import_csvs_to_db(db=SessionLocal()):
                             )
                             db.add(word)
                         translation_text = row['Translation']
-                        translation = db.query(Translation).filter(Translation.language == language).filter(Translation.text == translation_text).first()
+                        translation = db.query(Word).filter(Word.language == USER_LANGUAGE).filter(Word.text == translation_text).first()
                         if translation is None:
-                            translation = Translation(
+                            translation = Word(
                                 text=translation_text,
-                                language=language
+                                language=USER_LANGUAGE
                             )
                             db.add(translation)
                         db.commit()
