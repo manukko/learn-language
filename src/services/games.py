@@ -166,7 +166,7 @@ class GameService:
                 game_word = remaining_game_words_to_guess_dict[word_text]
                 word = game_word.word
                 n_round_valid_attempts += 1
-                translations_text_gt: List[str] = [word_translation.translation.text for word_translation in word.translations]
+                translations_text_gt: List[str] = [word_translation.translation.text for word_translation in word.associated_translations]
                 if word_candidate_translation_text in translations_text_gt:
                     correct_answer_increment = 1
                     n_round_correct_answers += 1

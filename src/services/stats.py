@@ -15,7 +15,7 @@ class StatService:
         for stat in stats:
             stat_output_model = StatOutputModel(
                 word=stat.word.text,
-                translations=[word_translation.translation.text for word_translation in stat.word.translations],
+                translations=[word_translation.translation.text for word_translation in stat.word.associated_translations],
                 n_appearances=stat.n_appearances,
                 n_correct_answers=stat.n_correct_answers,
                 total_score_percent=calculate_score_percentage(stat.n_correct_answers,stat.n_appearances)
