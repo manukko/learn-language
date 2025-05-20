@@ -18,7 +18,7 @@ class GameOutputModel(BaseModel):
     id: int
     language: str
     n_words_to_guess: int = Field(..., ge=1)
-    n_vocabulary: int = Field(..., ge=50)
+    n_vocabulary: int = Field(..., ge=1)
     model_config = {
         "from_attributes": True
     }
