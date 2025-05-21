@@ -22,22 +22,19 @@ def create_game(
 
     language = game_create_model.language.lower()
 
-    new_game, words = game_service.create_new_game(
+    new_game = game_service.create_new_game(
         db, 
         current_user, 
         language, 
         game_create_model.n_words_to_guess, 
         game_create_model.n_vocabulary,
-        game_create_model.type
+        game_create_model.type,
+        game_create_model.translate_from_your_language_percentage
     )
 
     return JSONResponse (
         status_code=status.HTTP_201_CREATED,
-        content={
-            "detail": "game created successfully",
-            "game_id": new_game.id,
-            "words": [game_word.text for game_word in words]
-        }
+        content={"game": new_game}
     )
 
 @router.get("/active")
