@@ -13,35 +13,19 @@ class GameService:
         self.MAX_WORD_SCORE_HARD_GAME = 0.5 #50%
         self.MIN_WORD_SCORE_RECAP_GAME = 0.5
 
-    def create_new_game(
+    def generate_words_for_new_game(
         self,
         db: Session,
         user: User,
         language: str,
         n_words_to_guess: int,
         n_vocabulary: int,
-        type: str
-    ) -> Tuple[Game, List[Word]]:
-        
-        if language not in SUPPORTED_LANGUAGES:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Language is not supported.",
-            )
-        n_active_games = len([game for game in user.games if game.is_active])
-        if n_active_games >= self.MAX_OPENED_GAMES_FOR_USER:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="""
-                You have reached the limit of opened games.
-                Please finish some opened games before opening a new one.
-                """,
-            )
-
+        game_type: str,
+        translate_from_your_language_percentage: int
+    ):
         words = []
         n_words_to_guess = min(n_words_to_guess, n_vocabulary)  # n_words_to_guess <= n_vocabulary
-
-        if type == "hard":
+        if game_type == "hard":
             stats = (
                 db.query(Stat)
                     .join(Stat.word)
@@ -53,7 +37,7 @@ class GameService:
                     .all()
             )
             words = [stat.word for stat in stats]
-        elif type == "recap":
+        elif game_type == "recap":
             stats = (
                 db.query(Stat)
                     .join(Stat.word)
@@ -77,15 +61,63 @@ class GameService:
                     .all()
             )
             vocabulary = [word_translation.word for word_translation in words_translations]
-            n_vocabulary = len(vocabulary)  # n_vocabulary might be less than number provided by user
             random.shuffle(vocabulary)
             if n_missing_words > 0:
                 words.extend(vocabulary[0:n_missing_words])
+            n_vocabulary_gt = len(vocabulary)  # n_vocabulary_gt might be less than number provided by user
+            n_words_to_guess_gt = len(words) # n_words_to_guess_gt might be less than number provided by user
+
+            # substitute translate_from_your_language_percentage% words with a random translation of the word
+            random.shuffle(words)
+            for index in range(int(n_words_to_guess_gt * translate_from_your_language_percentage / 100)):
+                word: Word = words[index]
+                translation = random.choice(word.associated_translations).translation
+                words[index] = translation
+            random.shuffle(words)
+
+        return words, n_vocabulary_gt, n_words_to_guess_gt
+
+    def create_new_game(
+        self,
+        db: Session,
+        user: User,
+        language: str,
+        n_words_to_guess: int,
+        n_vocabulary: int,
+        game_type: str,
+        translate_from_your_language_percentage: int
+    ) -> GameDetailOutputModel:
+        
+        if language not in SUPPORTED_LANGUAGES:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Language is not supported.",
+            )
+        n_active_games = len([game for game in user.games if game.is_active])
+        if n_active_games >= self.MAX_OPENED_GAMES_FOR_USER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="""
+                You have reached the limit of opened games.
+                Please finish some opened games before opening a new one.
+                """,
+            )
+
+        words, n_vocabulary_gt, n_words_to_guess_gt  = self.generate_words_for_new_game(
+            db,
+            user,
+            language,
+            n_words_to_guess,
+            n_vocabulary,
+            game_type,
+            translate_from_your_language_percentage
+        )
+
         new_game = Game(
             user_id=user.id,
             language=language,
-            n_words_to_guess=n_words_to_guess,
-            n_vocabulary=n_vocabulary,
+            n_words_to_guess=n_words_to_guess_gt,
+            n_vocabulary=n_vocabulary_gt,
         )
         db.add(new_game)
         db.commit()
@@ -94,7 +126,19 @@ class GameService:
             new_game_word = GameWord(game_id=new_game.id, word_id=word.id)
             db.add(new_game_word)
         db.commit()
-        return new_game, words
+
+        game_detail_output_detail = GameDetailOutputModel(
+            id=new_game.id,
+            language=new_game.language,
+            n_words_to_guess=n_words_to_guess_gt,
+            n_vocabulary=n_vocabulary_gt,
+            n_correct_answers=new_game.n_correct_answers,
+            n_remaining_words_to_guess=new_game.n_words_to_guess,
+            from_target_language=[word.text for word in words if word.language == language],
+            from_your_language=[word.text for word in words if word.language != language],
+            game_score_percentage=None
+        ).model_dump()
+        return game_detail_output_detail
     
     def get_games_for_user(self, db: Session, user: User, active_only: bool) -> List[GameOutputModel]:
 
@@ -115,23 +159,33 @@ class GameService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No game of yours corresponds to the id provided!"
             )
-        n_remaining_words_to_guess = [word.word.text for word in game.words]
-        n_remaining_words_to_guess_number=len(n_remaining_words_to_guess)
-        if n_remaining_words_to_guess_number==game.n_words_to_guess:
+        words_to_guess = []
+        words_to_guess_from_target_language = []
+        words_to_guess_from_your_language = []
+        for game_word in game.words:
+            word_text = game_word.word.text
+            words_to_guess.append(word_text)
+            if game_word.word.language == game.language:
+                words_to_guess_from_target_language.append(word_text)
+            else:
+                words_to_guess_from_your_language.append(word_text)
+        n_words_to_guess=len(words_to_guess)
+
+        if n_words_to_guess==game.n_words_to_guess:
             game_score_percentage = None
         else:
-            game_score_percentage = game.n_correct_answers / (game.n_words_to_guess - n_remaining_words_to_guess_number)
+            game_score_percentage = game.n_correct_answers / (game.n_words_to_guess - n_words_to_guess)
         
-        print(f"is_active={game.is_active}")
         game_output_model = GameDetailOutputModel(
             id=game.id,
             language=game.language,
             n_words_to_guess=game.n_words_to_guess,
             n_vocabulary=game.n_vocabulary,
             n_correct_answers=game.n_correct_answers,
-            n_remaining_words_to_guess=n_remaining_words_to_guess_number,
+            n_remaining_words_to_guess=n_words_to_guess,
             game_score_percentage=game_score_percentage,
-            remaining_words_to_guess=n_remaining_words_to_guess,
+            from_target_language=words_to_guess_from_target_language,
+            from_your_language=words_to_guess_from_your_language
         ).model_dump()
         return game_output_model
 
