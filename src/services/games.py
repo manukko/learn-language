@@ -247,6 +247,8 @@ class GameService:
         round_score_percentage = calculate_score_percentage(n_round_correct_answers, n_round_valid_attempts)
 
         remaining_words_to_guess = list(remaining_game_words_to_guess_dict.keys())
+        remaining_words_to_guess_from_target_language = [game_word.word.text for game_word in remaining_game_words_to_guess_dict.values() if game_word.word.language == game.language]
+        remaining_words_to_guess_from_your_language = [game_word.word.text for game_word in remaining_game_words_to_guess_dict.values() if game_word.word.language != game.language]
         n_remaining_words_to_guess = len(remaining_words_to_guess)
         
         if n_remaining_words_to_guess == 0:
@@ -266,6 +268,7 @@ class GameService:
             n_correct_answers=game.n_correct_answers,
             n_remaining_words_to_guess=n_remaining_words_to_guess,
             game_score_percentage=game_score_percentage,
-            remaining_words_to_guess=remaining_words_to_guess,
+            from_target_language=remaining_words_to_guess_from_target_language,
+            from_your_language=remaining_words_to_guess_from_your_language,
         ).model_dump()
         return game, round_score_percentage
