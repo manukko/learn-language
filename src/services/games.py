@@ -24,31 +24,70 @@ class GameService:
         translate_from_your_language_percentage: int
     ):
         words = []
+        vocabulary = []
         n_words_to_guess = min(n_words_to_guess, n_vocabulary)  # n_words_to_guess <= n_vocabulary
+        n_words_translate_from_your_language = int(n_words_to_guess * translate_from_your_language_percentage / 100)
+        n_words_translate_from_target_language = n_words_to_guess - n_words_translate_from_your_language
+
         if game_type == "hard":
             stats = (
                 db.query(Stat)
-                    .join(Stat.word)
-                    .filter(Word.language == language)
+                    .filter(Stat.language == language)
                     .filter(Stat.user_id == user.id)
                     .filter((Stat.n_correct_answers / Stat.n_appearances) <= self.MAX_WORD_SCORE_HARD_GAME)
+                    .join(Stat.word)
+                    .filter(Word.language != language)
                     .order_by(text('RANDOM()'))
-                    .limit(n_words_to_guess)
+                    .limit(n_words_translate_from_your_language)
                     .all()
             )
-            words = [stat.word for stat in stats]
+            words_translate_from_your_language = [stat.word for stat in stats]
+            n_words_translate_from_your_language -= len(words_translate_from_your_language)
+            stats = (
+                db.query(Stat)
+                    .filter(Stat.language == language)
+                    .filter(Stat.user_id == user.id)
+                    .filter((Stat.n_correct_answers / Stat.n_appearances) <= self.MAX_WORD_SCORE_HARD_GAME)
+                    .join(Stat.word)
+                    .filter(Word.language == language)
+                    .order_by(text('RANDOM()'))
+                    .limit(n_words_translate_from_target_language)
+                    .all()
+            )
+            words_translate_from_target_language = [stat.word for stat in stats]
+            n_words_translate_from_target_language -= len(words_translate_from_target_language)
+
+            words = words_translate_from_your_language + words_translate_from_target_language
+
         elif game_type == "recap":
             stats = (
                 db.query(Stat)
-                    .join(Stat.word)
-                    .filter(Word.language == language)
+                    .filter(Stat.language == language)
                     .filter(Stat.user_id == user.id)
                     .filter((Stat.n_correct_answers / Stat.n_appearances) >= self.MIN_WORD_SCORE_RECAP_GAME)
+                    .join(Stat.word)
+                    .filter(Word.language != language)
                     .order_by(text('RANDOM()'))
-                    .limit(n_words_to_guess)
+                    .limit(n_words_translate_from_your_language)
                     .all()
             )
-            words = [stat.word for stat in stats]
+            words_translate_from_your_language = [stat.word for stat in stats]
+            n_words_translate_from_your_language -= len(words_translate_from_your_language)
+            stats = (
+                db.query(Stat)
+                    .filter(Stat.language == language)
+                    .filter(Stat.user_id == user.id)
+                    .filter((Stat.n_correct_answers / Stat.n_appearances) >= self.MIN_WORD_SCORE_RECAP_GAME)
+                    .join(Stat.word)
+                    .filter(Word.language == language)
+                    .order_by(text('RANDOM()'))
+                    .limit(n_words_translate_from_target_language)
+                    .all()
+            )
+            words_translate_from_target_language = [stat.word for stat in stats]
+            n_words_translate_from_target_language -= len(words_translate_from_target_language)
+
+            words = words_translate_from_your_language + words_translate_from_target_language
 
         n_missing_words = n_words_to_guess-len(words)
         if n_missing_words > 0:
@@ -60,21 +99,20 @@ class GameService:
                     .limit(n_vocabulary)
                     .all()
             )
-            vocabulary = [word_translation.word for word_translation in words_translations]
-            random.shuffle(vocabulary)
-            if n_missing_words > 0:
-                words.extend(vocabulary[0:n_missing_words])
-            n_vocabulary_gt = len(vocabulary)  # n_vocabulary_gt might be less than number provided by user
-            n_words_to_guess_gt = len(words) # n_words_to_guess_gt might be less than number provided by user
+            if n_words_translate_from_target_language > 0:
+                vocabulary = [word_translation.word for word_translation in words_translations]
+                n_vocabulary_gt = len(vocabulary)
+                random.shuffle(vocabulary)
+                words.extend(vocabulary[0:n_words_translate_from_target_language])
+            if n_words_translate_from_your_language > 0:
+                vocabulary = [word_translation.translation for word_translation in words_translations]
+                random.shuffle(vocabulary)
+                if n_missing_words > 0:
+                    words.extend(vocabulary[0:n_words_translate_from_your_language])
 
-            # substitute translate_from_your_language_percentage% words with a random translation of the word
-            random.shuffle(words)
-            for index in range(int(n_words_to_guess_gt * translate_from_your_language_percentage / 100)):
-                word: Word = words[index]
-                translation = random.choice(word.associated_translations).translation
-                words[index] = translation
-            random.shuffle(words)
-
+        n_words_to_guess_gt = len(words) # n_words_to_guess_gt might be less than number provided by user
+        n_vocabulary_gt = max(len(vocabulary), n_words_to_guess_gt)   # n_vocabulary_gt might be less than number provided by user
+        random.shuffle(words)
         return words, n_vocabulary_gt, n_words_to_guess_gt
 
     def create_new_game(
@@ -219,14 +257,14 @@ class GameService:
             else:
                 from_your_language_gamewords_dict[game_word.word.text] = game_word
 
-        n_from_target_language_valid_attemps, n_from_target_language_correct_answers = self.verify_answers(
+        n_from_target_language_valid_attemps, n_from_target_language_correct_answers = self._verify_answers(
             db,
             user,
             game,
             from_target_language_translation_candidates,
             from_target_language_gamewords_dict,
         )
-        n_from_your_language_valid_attemps, n_from_your_language_correct_answers = self.verify_answers(
+        n_from_your_language_valid_attemps, n_from_your_language_correct_answers = self._verify_answers(
             db,
             user,
             game,
@@ -272,7 +310,7 @@ class GameService:
         ).model_dump()
         return game, round_score_percentage
 
-    def verify_answers(
+    def _verify_answers(
         self,
         db: Session,
         user: User,
