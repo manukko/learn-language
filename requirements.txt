@@ -13,3 +13,6 @@ postgres
 alembic
 redis
 itsdangerous
+pytest
+pytest-pythonpath
+httpx
