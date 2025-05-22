@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from src.db.models import Stat, User, Word, Game, GameWord, SUPPORTED_LANGUAGES, WordTranslation
+from src.db.models import Stat, User, Word, Game, GameWord, SUPPORTED_LANGUAGES, USER_LANGUAGE, WordTranslation
 import random
 from src.schemas.games import GameOutputModel, GameDetailOutputModel
 from typing import List, Tuple
@@ -13,7 +13,7 @@ class GameService:
         self.MAX_WORD_SCORE_HARD_GAME = 0.5 #50%
         self.MIN_WORD_SCORE_RECAP_GAME = 0.5
 
-    def generate_words_for_new_game(
+    def _generate_words_for_new_game(
         self,
         db: Session,
         user: User,
@@ -103,7 +103,7 @@ class GameService:
                 """,
             )
 
-        words, n_vocabulary_gt, n_words_to_guess_gt  = self.generate_words_for_new_game(
+        words, n_vocabulary_gt, n_words_to_guess_gt  = self._generate_words_for_new_game(
             db,
             user,
             language,
@@ -190,7 +190,12 @@ class GameService:
         return game_output_model
 
     def give_answers_for_game(
-        self, db: Session, user: User, game_id: int, answers: dict[str, str]
+        self,
+        db: Session,
+        user: User,
+        game_id: int,
+        from_target_language_translation_candidates: dict[str, str],
+        from_your_language_translation_candidates: dict[str, str]
     ) -> Tuple[GameDetailOutputModel, float]:
         game = db.query(Game).filter(Game.user_id == user.id) \
             .filter(Game.id == game_id).first()
@@ -205,63 +210,49 @@ class GameService:
                 detail="Game has ended, please play an active game!"
             )
         
-        remaining_game_words_to_guess_dict: dict[str, GameWord] = {}
+        from_target_language_gamewords_dict: dict[str, GameWord] = {}
+        from_your_language_gamewords_dict: dict[str, GameWord] = {}
         game_words: List[GameWord] = game.words
         for game_word in game_words:
-            remaining_game_words_to_guess_dict[game_word.word.text] = game_word
-        
-        n_round_valid_attempts = 0
-        n_round_correct_answers = 0
+            if game_word.word.language == game.language:
+                from_target_language_gamewords_dict[game_word.word.text] = game_word
+            else:
+                from_your_language_gamewords_dict[game_word.word.text] = game_word
 
-        for word_text, word_candidate_translation_text in answers.items():
-            word_text = word_text.lower()
-            word_candidate_translation_text = word_candidate_translation_text.lower()
-            if word_text in list(remaining_game_words_to_guess_dict.keys()):
-                game_word = remaining_game_words_to_guess_dict[word_text]
-                word = game_word.word
-                n_round_valid_attempts += 1
-                translations_text_gt: List[str] = [word_translation.translation.text for word_translation in word.associated_translations]
-                if word_candidate_translation_text in translations_text_gt:
-                    correct_answer_increment = 1
-                    n_round_correct_answers += 1
-                else:
-                    correct_answer_increment = 0
-                remaining_game_words_to_guess_dict.pop(word_text)
-                db.delete(game_word)
-                stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word.id).first()
-                if not stat:
-                    db.add(
-                        Stat(
-                            user_id=user.id,
-                            word_id=word.id,
-                            n_appearances=1,
-                            n_correct_answers=correct_answer_increment,
-                        )
-                    )
-                else:
-                    stat.n_appearances += 1
-                    stat.n_correct_answers += correct_answer_increment
-                db.commit()
-        
-        game.n_correct_answers = game.n_correct_answers + n_round_correct_answers
-        round_score_percentage = calculate_score_percentage(n_round_correct_answers, n_round_valid_attempts)
+        n_from_target_language_valid_attemps, n_from_target_language_correct_answers = self.verify_answers(
+            db,
+            user,
+            game,
+            from_target_language_translation_candidates,
+            from_target_language_gamewords_dict,
+        )
+        n_from_your_language_valid_attemps, n_from_your_language_correct_answers = self.verify_answers(
+            db,
+            user,
+            game,
+            from_your_language_translation_candidates,
+            from_your_language_gamewords_dict,
+        )
 
-        remaining_words_to_guess = list(remaining_game_words_to_guess_dict.keys())
+        n_valid_attempts = n_from_target_language_valid_attemps + n_from_your_language_valid_attemps
+        n_correct_answers = n_from_target_language_correct_answers + n_from_your_language_correct_answers
+        round_score_percentage = calculate_score_percentage(n_correct_answers, n_valid_attempts)
+
         remaining_words_to_guess_from_target_language = [
             game_word.word.text
-            for game_word in remaining_game_words_to_guess_dict.values()
+            for game_word in from_target_language_gamewords_dict.values()
             if game_word.word.language == game.language
         ]
         remaining_words_to_guess_from_your_language = [
             game_word.word.text
-            for game_word in remaining_game_words_to_guess_dict.values()
+            for game_word in from_your_language_gamewords_dict.values()
             if game_word.word.language != game.language
         ]
-        n_remaining_words_to_guess = len(remaining_words_to_guess)
-        
+        n_remaining_words_to_guess = len(remaining_words_to_guess_from_target_language) + len(remaining_words_to_guess_from_your_language)
+    
+        game.n_correct_answers = game.n_correct_answers + n_correct_answers
         if n_remaining_words_to_guess == 0:
             game.is_active = False
-
         db.commit()
         db.refresh(game)
 
@@ -280,3 +271,61 @@ class GameService:
             from_your_language=remaining_words_to_guess_from_your_language,
         ).model_dump()
         return game, round_score_percentage
+
+    def verify_answers(
+        self,
+        db: Session,
+        user: User,
+        game: Game,
+        answers: dict[str, str],
+        solutions: dict[str, GameWord]
+    ):
+        n_valid_attempts = 0
+        n_correct_answers = 0
+
+        for word_text, word_candidate_translation_text in answers.items():
+            word_text = word_text.lower()
+            word_candidate_translation_text = word_candidate_translation_text.lower()
+            if word_text in list(solutions.keys()):
+                game_word = solutions[word_text]
+                word = game_word.word
+                n_valid_attempts += 1
+                if game.language == word.language:
+                    correct_solutions_gt: List[str] = [
+                        word_translation.translation.text
+                        for word_translation in word.associated_translations
+                        if word_translation.translation.language == USER_LANGUAGE
+                    ]
+                else:
+                    # if word is not in game language, it is to translate in game language
+                    # then the possible solutions are all words in game language associated with that translation
+                    correct_solutions_gt: List[str] = [
+                        translation_word.word.text
+                        for translation_word in word.associated_words
+                        if translation_word.translation.language == game.language
+
+                    ]
+                if word_candidate_translation_text in correct_solutions_gt:
+                    correct_answer_increment = 1
+                    n_correct_answers += 1
+                else:
+                    correct_answer_increment = 0
+                solutions.pop(word_text)
+                db.delete(game_word)
+                stat = db.query(Stat).filter(Stat.user_id == user.id).filter(Stat.word_id == word.id).first()
+                if not stat:
+                    db.add(
+                        Stat(
+                            user_id=user.id,
+                            word_id=word.id,
+                            language=game.language,
+                            n_appearances=1,
+                            n_correct_answers=correct_answer_increment,
+                        )
+                    )
+                else:
+                    stat.n_appearances += 1
+                    stat.n_correct_answers += correct_answer_increment
+                db.commit()
+        
+        return n_valid_attempts, n_correct_answers
