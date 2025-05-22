@@ -12,14 +12,19 @@ class StatService:
     def get_stats_for_user(self, db: Session, user: User, language) -> List[StatOutputModel]:
         stats_query = db.query(Stat).filter(Stat.user_id == user.id)
         if language:
-            stats_query = stats_query.join(Stat.word).filter(Word.language == language)
+            stats_query = stats_query.filter(Stat.language == language)
         stats = stats_query.all()
         stats_output_model = []
         for stat in stats:
+            if stat.language == stat.word.language:
+                translations=[word_translation.translation.text for word_translation in stat.word.associated_translations]
+            else:
+                translations=[translation_words.word.text for translation_words in stat.word.associated_words]
             stat_output_model = StatOutputModel(
-                language=stat.word.language,
                 word=stat.word.text,
-                translations=[word_translation.translation.text for word_translation in stat.word.associated_translations],
+                translations=translations,
+                language=stat.language,
+                word_language=stat.word.language,
                 n_appearances=stat.n_appearances,
                 n_correct_answers=stat.n_correct_answers,
                 total_score_percent=calculate_score_percentage(stat.n_correct_answers,stat.n_appearances)
