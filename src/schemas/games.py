@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
@@ -48,14 +48,17 @@ class GameCreateInputModel(BaseModel):
         language (str): The language in which the game will be played.
         n_vocabulary (int): The number of vocabulary words available for the game.
         n_words_to_guess (int, optional): The number of words the player needs to guess. Defaults to 10.
-        type (str, optional): The type of game to create. Defaults to "random".
+        type (str, optional): The type of game to create between:
+        - random (default): choose words randomly on n_vocabulary most frequent words in target language
+        - hard: choose words among the ones with score <= 50% (if not enough words with stats, choose the others as in mode 'random')
+        - recap: choose words among the ones with score >= 50% (if not enough words with stats, choose the others as in mode 'random')
         translate_from_your_language_percentage (str, optional): percentage of words to translate from your language to target language; \
             100 - translate_to_your_language_percentage is the percentage of words to translate from target language to your language instead.
     """
     language: str
     n_vocabulary: int
     n_words_to_guess: int = 10
-    type: str = "random"
+    type: Literal['random', 'hard', 'recap'] = 'random'
     translate_from_your_language_percentage: int = Field(default=0, ge=0, le=100)
 
 class AnswerInputModel(BaseModel):
