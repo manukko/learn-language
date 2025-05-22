@@ -153,6 +153,7 @@ class Stat(Base):
         id (int): Primary key.
         user_id (int): Foreign key to the user.
         word_id (int): Foreign key to the word.
+        language (str): The language of the stats: it always corresponds to the language of the game updating the stat.
         n_appearances (int): Number of times the word appeared.
         n_correct_answers (int): Number of times the user answered correctly.
         user (User): The associated user.
@@ -162,6 +163,7 @@ class Stat(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"))
+    language = Column(String, nullable=False)
     n_appearances = Column(Integer, nullable=False)
     n_correct_answers = Column(Integer, nullable=False)
     user: Mapped[User] = relationship("User")
