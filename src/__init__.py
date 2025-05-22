@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 version = "v1"
 app = FastAPI(title="learn your language api", version=version, lifespan=lifespan)
 
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", DOMAIN])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver", DOMAIN])
 
 app.include_router(default_router)
 app.include_router(router=games_router, prefix=f"/api/{version}/games")
