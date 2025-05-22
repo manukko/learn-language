@@ -339,8 +339,7 @@ class GameService:
                     correct_solutions_gt: List[str] = [
                         translation_word.word.text
                         for translation_word in word.associated_words
-                        if translation_word.translation.language == game.language
-
+                        if translation_word.word.language == game.language
                     ]
                 if word_candidate_translation_text in correct_solutions_gt:
                     correct_answer_increment = 1
