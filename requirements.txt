@@ -16,3 +16,4 @@ itsdangerous
 pytest
 pytest-pythonpath
 httpx
+testcontainers[postgresql]
