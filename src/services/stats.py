@@ -12,8 +12,11 @@ class StatService:
     def get_stats_for_user(self, db: Session, user: User, language) -> List[StatOutputModel]:
         stats_query = db.query(Stat).filter(Stat.user_id == user.id)
         if language:
-            stats_query = stats_query.filter(Stat.language == language)
+            stats_query = stats_query.join(Stat.word).filter(Stat.language == language)
+            # order by: foreign->user language translations before user->foreign, then stat score asc, then alphabetical order asc
+            stats_query = stats_query.order_by(Word.language != language, Stat.n_correct_answers / Stat.n_appearances, Word.text)
         stats = stats_query.all()
+        print(stats)
         stats_output_model = []
         for stat in stats:
             if stat.language == stat.word.language:
@@ -30,5 +33,4 @@ class StatService:
                 total_score_percent=calculate_score_percentage(stat.n_correct_answers,stat.n_appearances)
             )
             stats_output_model.append(stat_output_model)
-        stats_output_model.sort(key=lambda x: (x.total_score_percent, -x.n_appearances))
         return stats_output_model
