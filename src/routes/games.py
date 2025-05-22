@@ -83,7 +83,8 @@ def post_answers_for_game(
         db,
         current_user,
         id,
-        answer_model.answers
+        answer_model.from_foreign_language,
+        answer_model.from_your_language
     )
     return JSONResponse (
                 status_code=status.HTTP_200_OK,

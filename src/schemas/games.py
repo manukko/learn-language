@@ -60,9 +60,13 @@ class GameCreateInputModel(BaseModel):
 
 class AnswerInputModel(BaseModel):
     """
-    Input model for submitting answers in a game session.
+    Model representing the input for an answer in a language learning game.
 
     Attributes:
-        answers (dict[str, str]): A mapping from question identifiers (or words) to the user's submitted answers.
+        from_foreign_language (dict[str, str]): 
+            A dictionary mapping words in the target language to their translations.
+        from_your_language (dict[str, str]): 
+            A dictionary mapping words in the user's native language to their translations.
     """
-    answers: dict[str, str]
+    from_foreign_language: dict[str, str] = {}
+    from_your_language: dict[str, str] = {}
