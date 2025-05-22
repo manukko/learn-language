@@ -107,8 +107,7 @@ class GameService:
             if n_words_translate_from_your_language > 0:
                 vocabulary = [word_translation.translation for word_translation in words_translations]
                 random.shuffle(vocabulary)
-                if n_missing_words > 0:
-                    words.extend(vocabulary[0:n_words_translate_from_your_language])
+                words.extend(vocabulary[0:n_words_translate_from_your_language])
 
         n_words_to_guess_gt = len(words) # n_words_to_guess_gt might be less than number provided by user
         n_vocabulary_gt = max(len(vocabulary), n_words_to_guess_gt)   # n_vocabulary_gt might be less than number provided by user
