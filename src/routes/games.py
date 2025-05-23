@@ -55,18 +55,14 @@ def get_all_games_for_user(
         content={"games": games}
     )
 
-@router.get("/{id}")
+@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=GameDetailOutputModel)
 def get_game_details_from_id(
     id: int,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
     ):
     game = game_service.get_game_details_from_id(db, current_user, id)
-
-    return JSONResponse (
-        status_code=status.HTTP_200_OK,
-        content={"game": game}
-    )
+    return game
 
 @router.post("/{id}/answers")
 def post_answers_for_game(
