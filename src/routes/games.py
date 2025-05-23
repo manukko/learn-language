@@ -6,14 +6,14 @@ from src.services.auth import (
     get_current_user_factory
 )
 from src.db.models import User
-from src.schemas.games import GameCreateInputModel
+from src.schemas.games import GameCreateInputModel, GameDetailOutputModel
 from src.schemas.games import AnswerInputModel
 from src.services.games import GameService
 
 router = APIRouter()
 game_service = GameService()
 
-@router.post("/new")
+@router.post("/new", status_code=status.HTTP_201_CREATED, response_model=GameDetailOutputModel)
 def create_game(
     game_create_model: GameCreateInputModel,
     db: Session = Depends(get_db_session),
@@ -32,11 +32,7 @@ def create_game(
         game_create_model.translate_from_your_language_percentage
     )
 
-    return JSONResponse (
-        status_code=status.HTTP_201_CREATED,
-        content={"game": new_game}
-    )
-
+    return new_game
 @router.get("/active")
 def get_active_games_for_user(
     db: Session = Depends(get_db_session),
