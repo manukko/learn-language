@@ -64,6 +64,18 @@ def get_game_details_from_id(
     game = game_service.get_game_details_from_id(db, current_user, id)
     return game
 
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
+def delete_game(    
+    id: int,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_factory()),
+    ):
+    game_service.delete_game(db, current_user, id)
+    return JSONResponse(
+        content={"detail": "Game successfully deleted"}
+    )
+
+
 @router.post("/{id}/answers")
 def post_answers_for_game(
     id: int,

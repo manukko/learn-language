@@ -226,6 +226,17 @@ class GameService:
         ).model_dump()
         return game_output_model
 
+    def delete_game(self, db: Session, user: User, game_id: int) -> None:
+
+        game = db.query(Game).filter(Game.user_id == user.id).filter(Game.id == game_id).first()
+        if not game:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No game of yours corresponds to the id provided!"
+            )
+        db.delete(game)
+        db.commit()
+
     def give_answers_for_game(
         self,
         db: Session,
