@@ -25,7 +25,7 @@ CREDENTIALS_EXCEPTION = HTTPException(
 )
 
 TOKEN_IN_BLOCKLIST_EXCEPTION = HTTPException(
-    status_code=status.HTTP_403_FORBIDDEN,
+    status_code=status.HTTP_401_UNAUTHORIZED,
     detail={
         "error": "Could not validate credentials: Your token is invalid or has been revoked",
         "resolution": "Please get a valid token"
