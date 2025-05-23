@@ -47,7 +47,7 @@ def check_password(password: str) -> bool:
 
 
 # User registration
-@router.post("/register")
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate, backgroud_tasks: BackgroundTasks, db: Session = Depends(get_db_session)):
     if db.query(User).filter(User.username == user.username).first():
         raise HTTPException(
