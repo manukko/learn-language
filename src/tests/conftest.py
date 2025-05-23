@@ -7,14 +7,14 @@ import pytest
 from src.db.models import Base
 from src.services.auth import get_db_session
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def postgres_engine():
     with PostgresContainer("postgres:15") as postgres:
         engine = create_engine(postgres.get_connection_url())
         Base.metadata.create_all(engine)
-        yield engine  # teardown happens when container closes
+        yield engine
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def override_get_db(postgres_engine):
     TestingSessionLocal = sessionmaker(bind=postgres_engine)
 
@@ -26,7 +26,10 @@ def override_get_db(postgres_engine):
             db.close()
 
     app.dependency_overrides[get_db_session] = _override
+    yield
+    Base.metadata.drop_all(postgres_engine)
+    app.dependency_overrides.clear()
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def client(override_get_db):
     return TestClient(app)
