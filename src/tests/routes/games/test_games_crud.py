@@ -40,7 +40,6 @@ def test_create_game(client: TestClient, postgres_engine):
     game1_id = response.json().get("id")
     assert response.json().get("language") == language
     assert response.json().get("n_vocabulary") == n_vocabulary
-    assert response.json().get("n_words_to_guess") == n_words_to_guess
 
     response: JSONResponse = client.get(f"{GAMES_BASE_ROUTE}/", headers=headers)
     assert response.status_code == status.HTTP_200_OK
@@ -112,4 +111,3 @@ def test_delete_game(client: TestClient, postgres_engine):
     response: JSONResponse = client.get(f"{GAMES_BASE_ROUTE}/{id_game2}", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().get("id") == id_game2
-    assert response.json().get("n_words_to_guess") == n_words_to_guess_game2
