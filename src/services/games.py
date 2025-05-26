@@ -109,10 +109,17 @@ class GameService:
                 random.shuffle(vocabulary)
                 words.extend(vocabulary[0:n_words_translate_from_your_language])
 
-        n_words_to_guess_gt = len(words) # n_words_to_guess_gt might be less than number provided by user
-        n_vocabulary_gt = max(len(vocabulary), n_words_to_guess_gt)   # n_vocabulary_gt might be less than number provided by user
         random.shuffle(words)
-        return words, n_vocabulary_gt, n_words_to_guess_gt
+        words_dict_gt: dict[int, Word] = {}
+        for word in words:
+            if words_dict_gt.get(word.id) is None:
+                words_dict_gt[word.id] = word
+        
+        words_gt = list(words_dict_gt.values()) 
+
+        n_words_to_guess_gt = len(words_gt) # n_words_to_guess_gt might be less than number provided by user
+        n_vocabulary_gt = max(len(vocabulary), n_words_to_guess_gt)   # n_vocabulary_gt might be less than number provided by user
+        return words_gt, n_vocabulary_gt, n_words_to_guess_gt
 
     def create_new_game(
         self,
