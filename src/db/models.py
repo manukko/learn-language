@@ -5,6 +5,8 @@ from sqlalchemy import Column, ForeignKey, Integer, String, Boolean, create_engi
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, deferred, Mapped
 from sqlalchemy.dialects import postgresql
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 DATABASE_URL = os.getenv("POSTGRES_DB_URL")
 engine = create_engine(
