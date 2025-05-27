@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from src.db.models import init_db
 from src.routes.default import router as default_router
@@ -6,7 +8,8 @@ from src.routes.stats import router as stats_router
 from src.routes.users import router as user_router
 from contextlib import asynccontextmanager
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from env import DOMAIN
+import os
+DOMAIN = os.getenv("DOMAIN")
 
 
 @asynccontextmanager

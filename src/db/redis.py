@@ -1,11 +1,13 @@
 import redis
-import env
+import os
 
 ACCESS_TOKEN_JTI_EXPIRY = 700000 # ttl of access token in the redis db
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
 
 token_blacklist = redis.StrictRedis(
-    host=env.REDIS_HOST,
-    port=env.REDIS_PORT,
+    host=REDIS_HOST,
+    port=REDIS_PORT,
     db=0
 )
 
