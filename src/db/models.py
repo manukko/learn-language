@@ -7,9 +7,11 @@ from sqlalchemy.dialects import postgresql
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
-print("DATABASE_URL in CI:", os.getenv("POSTGRES_DB_URL"))
 
 DATABASE_URL = os.getenv("POSTGRES_DB_URL")
+print("MAIL_FROM: {}", os.getenv("MAIL_FROM"))
+print("DATABASE_URL in CI:", os.getenv("DATABASE_URL"))
+
 engine = create_engine(
     DATABASE_URL, echo=False
 )
