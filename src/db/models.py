@@ -3,7 +3,6 @@ import os
 from typing import List
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean, create_engine, text, Index
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, deferred, Mapped
-import os
 from sqlalchemy.dialects import postgresql
 from datetime import datetime
 
