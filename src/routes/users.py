@@ -19,10 +19,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.db.redis import add_jti_to_blocklist
 from src.schemas.users import ResetPasswordModel, SendResetPasswordLinkModel, UserCreate, UserModel
 from src.mail import mail, create_message
-import env
+import os
 router = APIRouter()
 
-DOMAIN = env.DOMAIN
+DOMAIN = os.getenv("DOMAIN")
 
 USERNAME_FORBIDDEN_CHARACTERS = list("$%\\/<>:^?!")
 ACCESS_TOKEN_DEFAULT_LIFESPAN_MINUTES = 18000 # TODO: change to 120 in prod

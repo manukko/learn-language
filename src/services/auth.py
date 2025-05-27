@@ -2,7 +2,7 @@ from datetime import timedelta
 import datetime
 from typing import Any, Callable
 import uuid
-import env
+import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
@@ -12,9 +12,8 @@ from src.db.models import User, SessionLocal
 from src.db.redis import token_in_blocklist
 from itsdangerous import URLSafeTimedSerializer
 
-# Secret key and JWT settings: to define in env.py
-SECRET_KEY = env.SECRET_KEY
-ALGORITHM = env.ALGORITHM
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 CREDENTIALS_EXCEPTION = HTTPException(
     status_code=status.HTTP_403_FORBIDDEN,
@@ -48,7 +47,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 salt = "email-configuration"
 serializer = URLSafeTimedSerializer(
-    secret_key=env.SECRET_KEY,
+    secret_key=SECRET_KEY,
     salt=salt
 )
 

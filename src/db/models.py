@@ -3,11 +3,13 @@ import os
 from typing import List
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean, create_engine, text, Index
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base, deferred, Mapped
-import env
 from sqlalchemy.dialects import postgresql
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
-DATABASE_URL = env.POSTGRES_DB_URL
+DATABASE_URL = os.getenv("POSTGRES_DB_URL")
+
 engine = create_engine(
     DATABASE_URL, echo=False
 )

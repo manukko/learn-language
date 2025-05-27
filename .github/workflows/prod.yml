@@ -1,0 +1,11 @@
+name: prod
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  call-tests:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit

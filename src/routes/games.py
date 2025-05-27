@@ -6,14 +6,14 @@ from src.services.auth import (
     get_current_user_factory
 )
 from src.db.models import User
-from src.schemas.games import GameCreateInputModel
+from src.schemas.games import GameCreateInputModel, GameDetailOutputModel
 from src.schemas.games import AnswerInputModel
 from src.services.games import GameService
 
 router = APIRouter()
 game_service = GameService()
 
-@router.post("/new")
+@router.post("/new", status_code=status.HTTP_201_CREATED, response_model=GameDetailOutputModel)
 def create_game(
     game_create_model: GameCreateInputModel,
     db: Session = Depends(get_db_session),
@@ -32,11 +32,7 @@ def create_game(
         game_create_model.translate_from_your_language_percentage
     )
 
-    return JSONResponse (
-        status_code=status.HTTP_201_CREATED,
-        content={"game": new_game}
-    )
-
+    return new_game
 @router.get("/active")
 def get_active_games_for_user(
     db: Session = Depends(get_db_session),
@@ -59,18 +55,26 @@ def get_all_games_for_user(
         content={"games": games}
     )
 
-@router.get("/{id}")
+@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=GameDetailOutputModel)
 def get_game_details_from_id(
     id: int,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user_factory()),
     ):
     game = game_service.get_game_details_from_id(db, current_user, id)
+    return game
 
-    return JSONResponse (
-        status_code=status.HTTP_200_OK,
-        content={"game": game}
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
+def delete_game(    
+    id: int,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_factory()),
+    ):
+    game_service.delete_game(db, current_user, id)
+    return JSONResponse(
+        content={"detail": "Game successfully deleted"}
     )
+
 
 @router.post("/{id}/answers")
 def post_answers_for_game(

@@ -1,46 +1,12 @@
-from typing import Tuple
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-import pytest
 from sqlalchemy.orm import sessionmaker
 from src import version
 from src.db.models import User
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from fastapi import status
 from src.services.auth import create_url_safe_token, verify_password
-
-@pytest.mark.helper
-def create_user(client: TestClient, username: str | None, password: str | None, email: str | None) -> Tuple[JSONResponse, MagicMock]:
-    with patch("src.routes.users.BackgroundTasks.add_task") as mock_send_email_task:
-        body = {}
-        if username is not None:
-            body["username"] = username
-        if password is not None:
-            body["password"] = password
-        if email is not None:
-            body["email"] = email
-        response: JSONResponse = client.post(f"/api/{version}/users/register", json=body)
-        return response, mock_send_email_task
-
-@pytest.mark.helper
-def get_access_token_for_user(client: TestClient, username: str | None, password: str | None):
-    data={
-        "username": username,
-        "password": password
-    }
-    headers={"Content-Type": "application/x-www-form-urlencoded"}
-    response: JSONResponse = client.post(f"/api/{version}/users/get_access_token", data=data, headers=headers)
-    return response
-
-@pytest.mark.helper
-def get_access_refresh_for_user(client: TestClient, username: str | None, password: str | None):
-    data={
-        "username": username,
-        "password": password
-    }
-    headers={"Content-Type": "application/x-www-form-urlencoded"}
-    response: JSONResponse = client.post(f"/api/{version}/users/get_refresh_token", data=data, headers=headers)
-    return response
+from src.tests.utils import create_user, get_access_token_for_user, get_refresh_token_for_user
 
 def test_create_user_twice(client: TestClient, postgres_engine):
     username = "prodigioso"
@@ -139,7 +105,7 @@ def test_refresh_token_logout(client: TestClient, postgres_engine):
 
     assert response.status_code == status.HTTP_201_CREATED
     
-    response = get_access_refresh_for_user(client, username, password)
+    response = get_refresh_token_for_user(client, username, password)
     assert response.status_code == status.HTTP_200_OK
     refresh_token = response.json().get("refresh_token")
 
