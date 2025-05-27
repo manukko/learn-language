@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 from src import version
 from src.db.models import import_csvs_to_db
-from unittest.mock import patch
 from fastapi import status
 from src.tests.utils import create_user_get_access_token
 
