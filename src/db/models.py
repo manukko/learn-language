@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("POSTGRES_DB_URL")
-print("MAIL_FROM: {}", os.getenv("MAIL_FROM"))
-print("DATABASE_URL in CI:", os.getenv("DATABASE_URL"))
+print(f"MAIL_FROM: {os.getenv("MAIL_FROM")}")
+print(f"DATABASE_URL in {os.getenv("DATABASE_URL")}")
 
 engine = create_engine(
     DATABASE_URL, echo=False
