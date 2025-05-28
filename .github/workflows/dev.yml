@@ -6,6 +6,6 @@ on:
       - dev
 
 jobs:
-  call-tests:
+  run-tests:
     uses: ./.github/workflows/tests.yml
     secrets: inherit
