@@ -1,9 +1,9 @@
-name: prod
+name: dev workflow
 
 on:
   pull_request:
     branches:
-      - main
+      - dev
 
 jobs:
   call-tests:
